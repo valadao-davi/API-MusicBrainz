@@ -12,7 +12,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "body-parser": "^1.20.2",
     "express": "^4.19.2",
-    "musicbrainz-api": "^0.17.0"
+    "musicbrainz-api": "^0.17.0",
+    "nodemon": "^3.1.4"
   }
 }
