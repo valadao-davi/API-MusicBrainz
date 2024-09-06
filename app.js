@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { query } from 'express';
 import { MusicBrainzApi } from 'musicbrainz-api';
 
 const app = express();
@@ -23,6 +23,18 @@ const artistID = async (artistID)=> {
         }
     };
 
+//chama o artista pelo seu ID
+app.route("/artistId/:id")
+    .get(async (req, res)=> {
+        const id = req.params.id
+        try {
+            const resultArtista = await artistID(id)
+            res.status(200).json(resultArtista)
+        }catch(error){
+            res.status(500).json({error: "Ocorreu um erro ao buscar seu artista"})
+        }
+    });
+
 const getImageRelease = async(idReleaseGroup)=> {
     const response = `https://coverartarchive.org/release/${idReleaseGroup}/front`
     return response
@@ -43,80 +55,37 @@ const releaseSearchID = async (releaseID) => {
     }
 }
 
+app.route("/idAlbum/:id")
+    .get(async (req, res)=> {
+        const idRelease = req.params.id
+        try{
+            const resultSearch = await releaseSearchID(idRelease)
+            res.status(200).json(resultSearch)
+        }catch(error){
+            res.status(500).json({error: "Ocorreu um erro ao buscar seu artista"})
+        }
+    }); 
+
+
 //recording inclui lançamentos apenas músicas
 const recordingSearchID = async (recordingID) => {
     try {
         const recording = await mbAPI.lookup('recording', recordingID)
-        return recording
+        const artist = await mbAPI.browse('artist', { 'recording': recordingID })
+        const release = await mbAPI.browse('release', { 'recording': recordingID})
+        return {
+            recordingID: recording.id,
+            recordingTitle: recording.title,
+            artistName: artist.artists[0].name,
+            artistID: artist.artists[0].id,
+            releaseTitle: release.releases[0].title,
+            releaseID: release.releases[0].id,
+        }
     } catch(error){
         console.error("Erro encontrado: " + error)
         throw error
     }
 }
-//procura o artista pelo nome
-const artistSearch = async(nameArtist)=> {
-    try {
-        const result = await mbAPI.search('artist', {query: nameArtist, limit: 10})
-        return result
-    }catch(error){
-        console.error("Erro encontrado: " + error)
-        throw error
-    }
-}
-//função de procura ao recording
-const recordingSearch = async(nameMusic)=> {
-    try {
-        const result = await mbAPI.search('recording', {query: nameMusic, limit: 10})
-        var artistasRepetidos = new Set();
-        const listaFiltrada = result.recordings.filter(recording => {
-            const artistName = recording['artist-credit'][0].name;
-            if(artistasRepetidos.has(artistName)){
-                return false
-            }else {
-                artistasRepetidos.add(artistName)
-                return true
-            }
-        })
-        return listaFiltrada
-    }catch(error){
-        console.error("Erro encontrado: " + error)
-        throw error
-    }
-}
-//funcao de procura de releaseGroup
-const releaseSearchAlbumEp = async(nameAlbum)=> {
-    try {
-        const result = await mbAPI.search('release', {query: nameAlbum})
-        return result
-    }catch(error){
-        console.error("Erro encontrado: " + error)
-        throw error
-    }
-}
-
-
-//chama o artista pelo seu ID
-app.route("/artistId/:id")
-    .get(async (req, res)=> {
-        const id = req.params.id
-        try {
-            const resultArtista = await artistID(id)
-            res.status(200).json(resultArtista)
-        }catch(error){
-            res.status(500).json({error: "Ocorreu um erro ao buscar seu artista"})
-        }
-    });
-//chama o artista pelo nome 
-app.route("/home/searchArtist/:artist")
-    .get(async (req, res)=> {
-        const artist = req.params.artist
-        try{
-            const resultSearch = await artistSearch(artist)
-            res.status(200).json(resultSearch)
-        }catch(error){
-            res.status(500).json({error: "Ocorreu um erro ao buscar seu artista"})
-        }
-    });
 //chama a música pelo nome
 app.route("/idMusic/:id")
     .get(async (req, res)=> {
@@ -129,17 +98,47 @@ app.route("/idMusic/:id")
         }
 });
  
-app.route("/idAlbum/:id")
+//procura o artista pelo nome
+const artistSearch = async(nameArtist)=> {
+    try {
+        const result = await mbAPI.search('artist', {query: nameArtist, limit: 10})
+        return result
+    }catch(error){
+        console.error("Erro encontrado: " + error)
+        throw error
+    }
+}
+//chama o artista pelo nome 
+app.route("/home/searchArtist/:artist")
     .get(async (req, res)=> {
-        const idRelease = req.params.id
+        const artist = req.params.artist
         try{
-            const resultSearch = await releaseSearchID(idRelease)
+            const resultSearch = await artistSearch(artist)
             res.status(200).json(resultSearch)
         }catch(error){
             res.status(500).json({error: "Ocorreu um erro ao buscar seu artista"})
         }
-    }); 
-
+    });
+//função de procura ao recording
+const recordingSearch = async(nameMusic)=> {
+    try {
+        const result = await mbAPI.search('recording', {query: nameMusic, limit: 100})
+        const listaFiltrada =  result.recordings.filter(recording => {
+            if(recording.releases){
+               return recording.releases.every(release=> {
+                    const releaseGroup = release['release-group']
+                    return !releaseGroup['secondary-types'] || releaseGroup['secondary-types'] === 0
+               })
+        }
+        return false
+    }
+        )
+        return result.recordings
+    }catch(error){
+        console.error("Erro encontrado: " + error)
+        throw error
+    }
+}
 app.route("/home/searchMusic/:music")
     .get(async (req, res)=> {
         const  music  = req.params.music
@@ -150,6 +149,36 @@ app.route("/home/searchMusic/:music")
             res.status(500).json({error: "Ocorreu um erro ao buscar seu artista"})
         }
     })
+
+//funcao de procura de releaseGroup
+const releaseSearchAlbumEp = async(nameAlbum)=> {
+    try {
+        const result = await mbAPI.search('release', {query: nameAlbum})
+        return result
+    }catch(error){
+        console.error("Erro encontrado: " + error)
+        throw error
+    }
+}
+
+// const tempoCalculado = async(milisegundos)=> {
+//     const segundosTotais = milisegundos/1000
+//     const minutos = segundosTotais/60
+//     const segundosMinutos = segundosTotais%60
+//     const tempo = {
+//         minuto: minutos.toFixed(2),
+//         segundos: segundosMinutos
+//     }
+//     return tempo
+// }
+
+// const tempoCalc = tempoCalculado(234000)
+// console.log(tempoCalc)
+
+
+
+
+
 
 //procura de albuns    
 app.route("/home/searchAlbum/:album")
@@ -162,5 +191,6 @@ app.route("/home/searchAlbum/:album")
             res.status(500).json({error: "Ocorreu um erro ao buscar seu artista"})
         }
     })    
+
 
 export default app;
