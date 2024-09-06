@@ -127,17 +127,31 @@ const recordingSearch = async(nameMusic)=> {
             if(recording.releases){
                return recording.releases.every(release=> {
                     const releaseGroup = release['release-group']
-                    return !releaseGroup['secondary-types'] || releaseGroup['secondary-types'] === 0
+                    return (
+                        !releaseGroup['secondary-types'] || 
+                        releaseGroup['secondary-types'] == 0
+                    ) &&
+                    releaseGroup['primary-type'] != 'Single' &&
+                    releaseGroup['primary-type'] != 'Other' &&
+                    releaseGroup['primary-type'] != 'EP'; 
                })
         }
         return false
-    }
-        )
-        return result.recordings
+    }).map(recording => ({
+        recordingId: recording.id,
+        recordingTitle: recording.title,
+        artistName: recording['artist-credit'][0].name,
+        artistID: recording['artist-credit'][0].artist.id,
+        release: recording.releases[0]['release-group'].title,
+        releaseType: recording.releases[0]['release-group']['primary-type'],
+        releaseTypeSecundary: recording.releases[0]['release-group']['secondary-types']
+    }));
+        return listaFiltrada
     }catch(error){
         console.error("Erro encontrado: " + error)
         throw error
     }
+    
 }
 app.route("/home/searchMusic/:music")
     .get(async (req, res)=> {
