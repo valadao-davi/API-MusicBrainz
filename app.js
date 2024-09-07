@@ -125,15 +125,12 @@ const recordingSearch = async(nameMusic)=> {
         const result = await mbAPI.search('recording', {query: nameMusic, limit: 100})
         const listaFiltrada =  result.recordings.filter(recording => {
             if(recording.releases){
-               return recording.releases.every(release=> {
+               return recording.releases.some(release=> {
                     const releaseGroup = release['release-group']
                     return (
-                        !releaseGroup['secondary-types'] || 
-                        releaseGroup['secondary-types'] == 0
+                        !releaseGroup['secondary-types'] || releaseGroup['secondary-types'].length == 0
                     ) &&
-                    releaseGroup['primary-type'] != 'Single' &&
-                    releaseGroup['primary-type'] != 'Other' &&
-                    releaseGroup['primary-type'] != 'EP'; 
+                    releaseGroup['primary-type'] != 'Other'  
                })
         }
         return false
@@ -144,7 +141,10 @@ const recordingSearch = async(nameMusic)=> {
         artistID: recording['artist-credit'][0].artist.id,
         release: recording.releases[0]['release-group'].title,
         releaseType: recording.releases[0]['release-group']['primary-type'],
-        releaseTypeSecundary: recording.releases[0]['release-group']['secondary-types']
+        releaseTypeSecundary: recording.releases[0]['release-group']['secondary-types'] 
+                                ? recording.releases[0]['release-group']['secondary-types']
+                                : 'Não tem tipo',
+        releaseGroupID: recording.releases[0]['release-group'].id
     }));
         return listaFiltrada
     }catch(error){
