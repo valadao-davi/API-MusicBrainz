@@ -127,24 +127,31 @@ const recordingSearch = async(nameMusic)=> {
             if(recording.releases){
                return recording.releases.some(release=> {
                     const releaseGroup = release['release-group']
+                    if('secondary-types' in releaseGroup) {
+                        console.log("tem")
+                        console.log(recording.id)
+                    }
                     return (
-                        !releaseGroup['secondary-types'] || releaseGroup['secondary-types'].length == 0
+                        !('secondary-types' in releaseGroup)
                     ) &&
-                    releaseGroup['primary-type'] != 'Other'  
+                    releaseGroup['primary-type'] == "Album" || releaseGroup['primary-type'] == "Single" && releaseGroup['primary-type'] != "Other" 
                })
         }
         return false
-    }).map(recording => ({
+        
+    })
+    .map(recording => ({
         recordingId: recording.id,
         recordingTitle: recording.title,
-        artistName: recording['artist-credit'][0].name,
-        artistID: recording['artist-credit'][0].artist.id,
-        release: recording.releases[0]['release-group'].title,
-        releaseType: recording.releases[0]['release-group']['primary-type'],
+        artistName: recording['artist-credit'][0].name, // nome do artista
+        artistID: recording['artist-credit'][0].artist.id, // id do artista
+        release: recording.releases[0]['release-group'].title, // coleçao 
+        releaseType: recording.releases[0]['release-group']['primary-type'], // tipo de coleção
         releaseTypeSecundary: recording.releases[0]['release-group']['secondary-types'] 
                                 ? recording.releases[0]['release-group']['secondary-types']
                                 : 'Não tem tipo',
-        releaseGroupID: recording.releases[0]['release-group'].id
+        releaseGroupID: recording.releases[0]['release-group'].id,
+        score: recording.score
     }));
         return listaFiltrada
     }catch(error){
